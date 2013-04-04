@@ -127,7 +127,7 @@ Git remote heroku added
 ``` 
 
 Le déploiement se fait ensuite simplement comme ceci :
-```
+```sh
 $ git push heroku master
 Counting objects: 47, done.
 Delta compression using up to 4 threads.
@@ -169,13 +169,13 @@ pouvez pusher. La configuration de ce remote est située dans le fichier `.git/c
 	fetch = +refs/heads/*:refs/remotes/heroku/*
 ```
 
-Par defaut, Heroku est configuré pour lancer uniquement un seul processus de type web. Pour lancer notre worker, exécutez la commande suivante :
-```
+Par défaut, Heroku est configuré pour lancer uniquement un seul processus de type web. Pour lancer notre worker, exécutez la commande suivante :
+```sh
  $ heroku ps:scale worker=1
 Scaling worker processes... done, now running 1
 ``` 
 Pour vérifier que votre programme est bien lancé, utilisez la commande suivante :
-```
+```sh
 $ heroku ps
 === worker: `java -cp target/classes:"target/dependency/*" fr.univaix.iut.pokebattle.run.PokeTimerMain `
 worker.1: up 2013/04/03 03:51:22 (~ 23m ago)
@@ -183,7 +183,8 @@ worker.1: up 2013/04/03 03:51:22 (~ 23m ago)
 
 Si vous voulez plus d'informations sur votre application, vous pouvez afficher les logs avec la commande suivante :
 
-```
+```sh
+$heroku logs
 2013-04-01T21:33:51+00:00 heroku[api]: Enable Logplex by plopplop+heroku@gmail.com
 2013-04-01T21:36:04+00:00 heroku[api]: Release v1 created by plopplop+heroku@gmail.com
 2013-04-01T21:36:05+00:00 heroku[api]: Deploy 3d9f3bf by plopplop+heroku@gmail.com
@@ -197,5 +198,186 @@ Si vous voulez plus d'informations sur votre application, vous pouvez afficher l
 2013-04-01T21:37:42+00:00 app[worker.1]: 1138 [pool-3-thread-1] INFO fr.univaix.iut.pokebattle.tuse.UserStreamAdapter - Unimplemented event handler: onFriendList
 ```
 ## Paramétrage de la base de données
+Toute application sur Heroku a accès gratuitement à une base de données *PostgresSQL* dès sa création. Cette base de 
+données a une capacité bien évidement très limitée (10000 tuples et 5.9MB). Pour notre besoin, cela suffira amplement.
+Pour avoir les informations sur cette base de données vous pouvez taper la commande suivante :
+```sh
+$ heroku  pg:info
+=== HEROKU_POSTGRESQL_GOLD_URL (DATABASE_URL)
+Plan:        Dev
+Status:      available
+Connections: 1
+PG Version:  9.1.9
+Created:     2013-04-01 04:36 UTC
+Data Size:   5.9 MB
+Tables:      0
+Rows:        0/10000 (In compliance)
+Fork/Follow: Unsupported
+```
+Comme vous le voyez nous avons une seule base qui s'appelle `HEROKU_POSTGRESQL_GOLD_URL`. Pour récupérer l'URL de 
+connexion à cette BD dans nos programmes, Heroku configure une variable d'environnement `DATABASE_URL`. La commande 
+`heroku config` permet d'afficher toutes les variables d'environnement qui seront disponibles quand notre application 
+sera déployée.
 
+```sh
+DATABASE_URL:               postgres://wqkhatrxxl:Tad6C_6Snb9ZqrDSyOv2RGC2@ec2-107-22-169-102.compute-1.amazonaws.com:5432/dc9cle3o9vvq
+HEROKU_POSTGRESQL_GOLD_URL: postgres://wqkhatrxxl:Tad6C_6Snb9ZqrDSyOv2RGC2@ec2-107-22-169-102.compute-1.amazonaws.com:5432/dc9cle3o9vvq
+JAVA_OPTS:                  -Xmx384m -Xss512k -XX:+UseCompressedOops
+MAVEN_OPTS:                 -Xmx384m -Xss512k -XX:+UseCompressedOops
+PATH:                       /app/.jdk/bin:/usr/local/bin:/usr/bin:/bin
+```
+Si vous voulez passer d'autres variables à vos programmes regardez la documentation de cette commande en faisant : `heroku help config`.
+
+Malheureusement pour nous, l'URL de connexion n'est pas une URL jdbc standard. Il va donc falloir au début de notre 
+programme récupérer la variable d'environnement `DATABASE_URL`, la découper et la passer à JPA pour qu'il puisse construire
+correctement notre objet `EntityManager`. La configuration de notre connexion ira donc en partie dans notre fonction `main()` 
+et plus uniquement dans le fichier `persistence.xml`. Bien évidement ça n'aura pas d'incidence sur la base de test qui 
+restera une base embarquée totalement indépendante de l'environnement technique.
+
+Le gros avantage de la configuration que nous allons présenter est que vous pourrez vous connecter à votre BD située sur
+Heroku même quand vous essaierez votre application localement.
+
+Si jamais pour une raison ou une autre par la suite vous avez besoin de réinitialiser votre BD vous pouvez le faire grâce 
+à la commande `heroku pg:reset`.
+
+Pour pouvoir faire fonctionner votre programme de la même manière en local que sur Heroku, il faut définir la variable 
+`DATABASE_URL` dans Eclipse avec la valeur précédente. Pour ce faire allez dans le menu `Run->Run Configuration ...` 
+choisissez votre main, aller dans l'onglet `environment`, cliquez sur `New` puis faite un copier/coller de la valeur 
+ci-dessus.
+
+### Récupération de la variable d'environnement :
+
+La première tache que devra faire votre programme sera de récupérer la variable d'environnement `DATABASE_URL` avec la 
+méthode `System.getenv()`:
+```java
+String databaseUrl = System.getenv("DATABASE_URL");
+```
+
+### Analyse de l'URL de connexion :
+Ensuite il faut parser l'ancienne URL pour la transformer en une chaîne de connexion JDBC valide :
+
+```java
+URI dbUri = new URI(databaseUrl);
+String username = dbUri.getUserInfo().split(":")[0];
+String password = dbUri.getUserInfo().split(":")[1];
+String dbUrl = "jdbc:postgresql://" + dbUri.getHost() + ':' + dbUri.getPort() + dbUri.getPath() + "?ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
+```
+
+### Paramétrage de l'unité de persistance à l'exécution :
+Pour passer des paramètres supplémentaires pour la construction d'une unité de persistance, la méthode statique 
+`Persistence.createEntityManagerFactory()` a une surcharge comportant deux paramètre, le premier est le nom d'une unité 
+de persistance définie dans le fichier `persistence.xml` et le second une `Map` permettant de passer les valeurs des 
+paramètres que l'on a besoin de rajouter à l'exécution. Dans notre cas, nous avons besoin de définir les paramètres 
+relatifs à la connexion JDBC : ``
+```java
+Map<String, String> props = new HashMap<String, String>();
+props.put("javax.persistence.jdbc.driver", "org.postgresql.Driver");
+props.put("eclipselink.target-database", "PostgreSQL");
+props.put("javax.persistence.jdbc.url", dbUrl);
+props.put("javax.persistence.jdbc.user", username);
+props.put("javax.persistence.jdbc.password", password);
+```
+
+Une fois cette objet `Map` correctement construit la suite de la construction de notre `entityManager` se passe comme suit :
+```java
+EntityManagerFactory emf = Persistence.createEntityManagerFactory("pokebattlePU", props);
+EntityManager em = emf.createEntityManager();
+```
+Le fichier `persistence.xml` se retrouve donc expurgé des paramètres devenus inutile : 
+```XML
+<?xml version="1.0" encoding="UTF-8" ?>
+<persistence xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd"
+             version="2.0" xmlns="http://java.sun.com/xml/ns/persistence">
+    <persistence-unit name="pokebattlePU" transaction-type="RESOURCE_LOCAL">
+        <provider>org.eclipse.persistence.jpa.PersistenceProvider</provider>
+        <properties>
+            <property name="eclipselink.logging.level" value="INFO"/>
+            <property name="eclipselink.ddl-generation" value="create-tables"/>
+            <property name="eclipselink.ddl-generation.output-mode" value="database"/>
+        </properties>
+    </persistence-unit>
+</persistence>
+```
+
+Pour finir, il faut aussi rajouter dans le fichier `pom.xml` la dépendance vers le connecteur JDBC de PostgreSQL :
+```XML
+<dependency>
+    <groupId>postgresql</groupId>
+    <artifactId>postgresql</artifactId>
+    <version>9.0-801.jdbc4</version>
+</dependency>
+```
+
+###Amélioration de la solution présentée
+Dans la solution présentée, la récupération de l'entityManager ne peut être faite qu'à partir de la fonction `main()` 
+car pour que notre code reste testable unitairement, il ne faut pas que nos classes dépendent d'une ressource propre à 
+l'environnement d'exécution. Il faudra donc que cet entityManager puisse être transmis à tous les DAO pour une utilisation
+ultérieure. Dans la solution que nous allons présenter, nous allons faire une classe `DAOFactoryJPA` qui aura la 
+responsabilité de créer tous les DAO à partir de l'objet `entityManager` qu'elle conservera. 
+```java
+public class DAOFactoryJPA {
+		private static EntityManager entityManager;
+
+		public static synchronized setEntityManager(EntityManager entityManager){
+			DAOFactoryJPA.entityManager = entityManager;
+		}
+
+		public DAOPokemon createDAOPokemon(){
+				return new DAOPokemonJPA(entityManager);
+		}
+
+		public DAOAttack createDAOAttack(){
+				return new DAOAttackJPA(entityManager);
+		}
+
+		public DAOCombat createDAOCombat(){
+				return new DAOCombatJPA(entityManager);
+		}
+}
+```
+La responsabilité de la méthode `main()` sera de construire l'entityManager et de le transmettre à la classe `DAOFactoryJPA` 
+pour que tous les DAO soient créés avec les bons paramètres :
+
+```java
+private static Map<String, String> createConfigurationMap() throws URISyntaxException {
+    URI dbUri = new URI(System.getenv("DATABASE_URL"));
+    String username = dbUri.getUserInfo().split(":")[0];
+    String password = dbUri.getUserInfo().split(":")[1];
+    String dbUrl = "jdbc:postgresql://" + dbUri.getHost() + ':' + dbUri.getPort() + dbUri.getPath() + "?ssl=true&sslfactory=org.postgresql.ssl.NonValidatingFactory";
+
+    Map<String, String> props = new HashMap<String, String>();
+    props.put("javax.persistence.jdbc.driver", "org.postgresql.Driver");
+    props.put("eclipselink.target-database", "PostgreSQL");
+    props.put("javax.persistence.jdbc.url", dbUrl);
+    props.put("javax.persistence.jdbc.user", username);
+    props.put("javax.persistence.jdbc.password", password);
+    return props;
+}
+
+public static void main(String[] args) throws URISyntaxException {
+    Map<String, String> props = createConfigurationMap();
+
+    EntityManagerFactory emf = Persistence.createEntityManagerFactory("pokebattlePU", props);
+    EntityManager em = emf.createEntityManager();
+
+    DAOFactoryJPA.setEntityManager(em);
+   	// Suite du programme ...
+}
+```
+
+Pour que nos tests soient eux aussi de la construction de notre unité de persistance, il faudra que chacune de vos 
+classe de test contiennent une méthode d'initialisation appelée avant tous les tests :
+```java
+@BeforeClass
+public static void initTestFixture() throws Exception {
+    EntityManagerFactory entityManagerFactory = Persistence.createEntityManagerFactory("pokebattlePUTest");
+    EntityManager entityManager = entityManagerFactory.createEntityManager();
+    DAOFactoryJPA.setEntityManager(em);
+    //... suite des initialisations pour les tests
+}
+```
+
+Une fois cette amélioration faite, vous pourrez faire tourner correctement votre application en local, sur Heroku et lancer 
+les tests en utilisant bien une base de données embarquée.
 
