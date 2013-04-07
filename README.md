@@ -193,7 +193,7 @@ Scaling worker processes... done, now running 1
 Pour vérifier que votre programme est bien lancé, utilisez la commande suivante :
 ```sh
 $ heroku ps
-=== worker: `java -cp target/classes:"target/dependency/*" fr.univaix.iut.pokebattle.run.PokeTimerMain `
+=== worker: `java -cp target/classes:"target/dependency/*" fr.univaix.iut.pokebattle.run.PokeTimerMain
 worker.1: up 2013/04/03 03:51:22 (~ 23m ago)
 ``` 
 
@@ -213,6 +213,10 @@ $heroku logs
 2013-04-01T21:37:42+00:00 app[worker.1]: 1129 [hosebird-client-io-thread-0] INFO com.twitter.hbc.httpclient.ClientBase - hosebird-client-0 Processing connection data
 2013-04-01T21:37:42+00:00 app[worker.1]: 1138 [pool-3-thread-1] INFO fr.univaix.iut.pokebattle.tuse.UserStreamAdapter - Unimplemented event handler: onFriendList
 ```
+Remarquez que les installations d'Eclipse à l'IUT ont déjà installé l'extension Heroku. Si vous le souhaitez,
+vous pouvez regarder le tutoriel suivante pour apprendre à vous en servir : 
+https://devcenter.heroku.com/articles/getting-started-with-heroku-eclipse
+
 ## Paramétrage de la base de données
 Toute application sur Heroku a accès gratuitement à une base de données *PostgresSQL* dès sa création. Cette base de 
 données a une capacité bien évidement très limitée (10000 tuples et 5.9MB). Pour notre besoin, cela suffira amplement.
