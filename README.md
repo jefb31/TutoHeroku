@@ -5,9 +5,19 @@ L'intérêt de pouvoir déployer sur le net est que vos pokémons, vos juges et 
 totalement autonomes de votre environnement de développement. Une fois le projet terminé, vous pourrez laisser vos 
 bots continuer à vivre leur vie sans avoir à vous en occuper.
 
+Si vous voulez plus d'informations, vous pouvez consulter les deux tutoriels qui m'ont servi de base : 
+- [Getting started with Heroku](https://devcenter.heroku.com/articles/quickstart)
+- [Getting Started with Java on Heroku](https://devcenter.heroku.com/articles/java)
+
+Remarquez aussi que le présent tutoriel est fait pour fonctionner sur les machines de l'IUT où le client en ligne de 
+commande d'héroku est déjà installé. Si vous voulez l'installer sur votre machine il vous suffit de le télécharger à 
+l'adresse suivante : (https://toolbelt.heroku.com/). De plus si vous utilisez des OS exotiques comme Windows (je ne 
+ferai pas de commentaires désobligeant), il vous faudra adapter les commandes données pour que cela fonctionne chez 
+vous. 
+
 ##Heroku
 
-Heroku est un service de cloud computing de type PAAS (Platform As A Service). Dans ce type d'environnement le 
+Heroku est un service de cloud computing de type PAaS (Platform As a Service). Dans ce type d'environnement le 
 fournisseur de service met à disposition de ses clients une plate-forme d'exécution d'application. Cette plate-forme met 
 à disposition les ressources physiques (serveurs), l'infrastructure (réseau, stockage et sauvegarde) ainsi que l'ensemble
 des logiciels nécessaires au lancement des applications clientes (systèmes d'exploitation, langage de programmation, outils 
@@ -16,10 +26,10 @@ de développements, ...).
 Le client bénéficie d'un environnement de développement managé, hébergé, et maintenu par un prestataire extérieur à son 
 entreprise. Le principal attrait de ses environnements vis à vis des hébergements plus classiques, est qu'ils proposent 
 une solution souvent simple d'accès capable de s'adapter facilement à la fluctuation des besoins des applications. Par 
-exemples si une application subit une montée en charge temporaire, l'utilisateur pourra augmenter les ressources mises à 
+exemple si une application subit une montée en charge temporaire, l'utilisateur pourra augmenter les ressources mises à 
 dispositions de son application. La facturation se fait en fonction de l'usage. Ainsi plus une application demandera de 
-temps de calcul, de stockage ou de mémoire, plus on payera chère. À l'inverse si notre application n'est plus utilisée, le
-coût de l'hébergement sera nul. L'idée est de ne payer que pour ceux que l'on a besoin et non de louer un serveur que 
+temps de calcul, de stockage ou de mémoire, plus on payera chèr. À l'inverse si notre application n'est plus utilisée, le
+coût de l'hébergement sera nul. L'idée est de ne payer que pour ceux dont on a besoin et non de louer un serveur que 
 l'on utilisera globalement pas ou peu mais que l'on aura dimensionné pour être capable de supporter une charge maximale 
 théorique.
 
@@ -53,10 +63,10 @@ Sur les machines de l'IUT, les clefs ne peuvent pas être sauvegardées sur le d
 cette manip avant chaque TP.
 
 ```sh
-$ ssh-keygen -t rsa  
-Generating public/private rsa key pair.  
-$ heroku keys:add  
-Uploading ssh public key /home/nedjar/.ssh/id_rsa.pub  
+$ ssh-keygen -t rsa
+Generating public/private rsa key pair.
+$ heroku keys:add
+Uploading ssh public key /home/nedjar/.ssh/id_rsa.pub
 ```
 
 Une fois cette étape effectuée, vous pouvez vous connecter dans un terminal en tapant la commande suivante :
@@ -87,7 +97,12 @@ fichier `pom.xml` les lignes suivantes :
         </plugin>
     </plugins>
 </build>
-``` 
+```
+
+Attention, Eclipse vous indiquera une erreur dans votre `pom.xml` quand vous aurez rajouter ces lignes. 
+Cliquez simplement sur l'erreur et demandez simplement à Eclipse de ne plus vous la signaler.
+Ce problème vient du plugin m2e qui ne sait pas gérer la copie des dépendances. Comme nous allons tester notre application en ligne de commande, cette erreur ne sera pas gênante pour nous.
+
 ## Test de l'application localement
 Pour vérifier que notre application est correctement configurée, nous allons lancer les commandes suivantes :
 ```sh
@@ -107,11 +122,10 @@ Pour indiquer les processus à créer ainsi que les commandes à utiliser, vous 
 la racine de votre projet. Le contenu de ce fichier sera le suivant :
 ```sh
 worker: java -cp target/classes:target/dependency/* fr.univaix.iut.pokebattle.run.PokemonMain
-
 ```
 
 Évidement si la classe contenant votre méthode `main` n'est pas `fr.univaix.iut.pokebattle.run.PokemonMain`, vous devrez 
-adapter cet exemple pour correspondre à votre cas.
+adapter cet exemple pour correspondre à votre cas. Remarquez que contrairement au test local ou nous avions dû protéger notre chaine par des quotes, dans ce fichier il ne faut pas le faire.
 
 ## Déploiement de l'application
 
@@ -125,6 +139,8 @@ Creating pokemon... done, stack is cedar
 http://pokemon.herokuapp.com/ | git@heroku.com:pokemon.git
 Git remote heroku added
 ``` 
+Dans l'exemple ci-dessus, `pokemon` représente le nom de votre application sur Heroku. Ce paramètre est optionnel mais 
+je ne saurai trop vous conseiller de toujours l'utiliser. 
 
 Le déploiement se fait ensuite simplement comme ceci :
 ```sh
