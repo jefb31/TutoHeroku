@@ -343,16 +343,16 @@ public class DAOFactoryJPA {
 			DAOFactoryJPA.entityManager = entityManager;
 		}
 
-		public DAOPokemon createDAOPokemon(){
-				return new DAOPokemonJPA(entityManager);
+		public static DAOPokemon createDAOPokemon(){
+			return new DAOPokemonJPA(entityManager);
 		}
 
-		public DAOAttack createDAOAttack(){
-				return new DAOAttackJPA(entityManager);
+		public static DAOAttack createDAOAttack(){
+			return new DAOAttackJPA(entityManager);
 		}
 
-		public DAOCombat createDAOCombat(){
-				return new DAOCombatJPA(entityManager);
+		public static DAOCombat createDAOCombat(){
+			return new DAOCombatJPA(entityManager);
 		}
 }
 ```
@@ -383,6 +383,7 @@ public static void main(String[] args) throws URISyntaxException {
 
     DAOFactoryJPA.setEntityManager(em);
    	// Suite du programme ...
+   	// DAOPokemon pokemon = DAOFactoryJPA.createDAOPokemon();
 }
 ```
 
